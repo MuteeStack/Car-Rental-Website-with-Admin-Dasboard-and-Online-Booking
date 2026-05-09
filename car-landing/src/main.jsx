@@ -1,0 +1,22 @@
+// src/main.jsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import App from './App.jsx'
+import AdminPanel from './AdminPanel.jsx'
+import BookingPage from './pages/BookingPage.jsx'
+import AboutPage from './pages/AboutPage.jsx'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/book" element={<BookingPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+    </BrowserRouter>
+  </React.StrictMode>
+)
