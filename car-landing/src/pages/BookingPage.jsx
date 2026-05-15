@@ -355,7 +355,7 @@ export default function BookingPage() {
                         <img
                           src={car.img}
                           alt={car.name}
-                          className="w-20 h-14 md:w-24 md:h-16 object-cover rounded-xl"
+                          className="w-20 h-14 md:w-24 md:h-16 object-contain rounded-xl"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-bold text-gray-900 text-sm md:text-base truncate">{car.name}</h4>

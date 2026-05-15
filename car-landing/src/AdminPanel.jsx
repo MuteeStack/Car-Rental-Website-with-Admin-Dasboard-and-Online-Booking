@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
-import { CarFront, LogOut, Pencil, PlusCircle, ShieldCheck, Trash2, Wallet, Calendar, MapPin, Phone, Mail, Check, X } from 'lucide-react';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { CarFront, LogOut, Pencil, PlusCircle, ShieldCheck, Trash2, Wallet, Calendar, MapPin, Phone, Mail, Check, X, Users, Lock, AlertCircle, Package } from 'lucide-react';
 import { defaultHeroSettings, mergeHeroSettings } from './constants/heroDefaults';
 
 const Toast = ({ message, type, onClose }) => {
@@ -32,6 +32,14 @@ export default function AdminPanel() {
   const [toast, setToast] = useState(null);
   const [editingCar, setEditingCar] = useState(null);
   const [heroSettings, setHeroSettings] = useState(defaultHeroSettings);
+  const [users, setUsers] = useState([]);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [newAdminConfirmPassword, setNewAdminConfirmPassword] = useState("");
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const showToast = (msg, type = 'success') => {
     setToast({ message: msg, type });
@@ -60,6 +68,7 @@ export default function AdminPanel() {
         fetchCars();
         fetchBookings();
         fetchHeroSettings();
+        fetchUsers();
       }
     });
     return () => unsubscribe();
@@ -147,6 +156,114 @@ export default function AdminPanel() {
     } catch (err) {
       console.error("Failed to load bookings:", err);
       showToast("Failed to load bookings", "error");
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const snapshot = await getDocs(collection(db, "users"));
+      const userList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setUsers(userList);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+      showToast("Failed to load users", "error");
+    }
+  };
+
+  const makeUserAdmin = async (e) => {
+    e.preventDefault();
+    
+    if (!newAdminEmail.trim() || !newAdminPassword.trim()) {
+      showToast("Please enter email and password", "error");
+      return;
+    }
+
+    if (newAdminPassword !== newAdminConfirmPassword) {
+      showToast("Passwords do not match", "error");
+      return;
+    }
+
+    if (newAdminPassword.length < 6) {
+      showToast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    setCreatingAdmin(true);
+    try {
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(auth, newAdminEmail, newAdminPassword);
+      const newUser = userCredential.user;
+
+      // Add user to Firestore with admin role
+      await setDoc(doc(db, "users", newUser.uid), {
+        uid: newUser.uid,
+        email: newAdminEmail,
+        role: "admin",
+        createdAt: new Date(),
+        createdBy: user.email
+      });
+
+      showToast(`Admin user ${newAdminEmail} created successfully!`);
+      setNewAdminEmail("");
+      setNewAdminPassword("");
+      setNewAdminConfirmPassword("");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error creating admin:", error);
+      if (error.code === 'auth/email-already-in-use') {
+        showToast("Email already in use", "error");
+      } else if (error.code === 'auth/invalid-email') {
+        showToast("Invalid email address", "error");
+      } else {
+        showToast("Failed to create admin user", "error");
+      }
+    } finally {
+      setCreatingAdmin(false);
+    }
+  };
+
+  const changePassword = async (e) => {
+    e.preventDefault();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast("All fields are required", "error");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showToast("Passwords do not match", "error");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showToast("Password must be at least 6 characters", "error");
+      return;
+    }
+
+    try {
+      // Re-authenticate user with current password
+      const credential = await signInWithEmailAndPassword(auth, user.email, currentPassword);
+      
+      // Update password
+      await updatePassword(credential.user, newPassword);
+
+      // Sign out from all sessions
+      await signOut(auth);
+
+      showToast("Password changed successfully. Please log in again.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      if (error.code === 'auth/wrong-password') {
+        showToast("Current password is incorrect", "error");
+      } else {
+        console.error("Error changing password:", error);
+        showToast("Failed to change password", "error");
+      }
     }
   };
 
@@ -279,26 +396,25 @@ export default function AdminPanel() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="rounded-2xl border border-white/10 bg-white/5 px-8 py-6 text-white shadow-2xl backdrop-blur-md">
-          <p className="text-base font-medium tracking-wide">Loading admin panel...</p>
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.1),transparent_50%)] bg-slate-50">
+        <div className="rounded-3xl border border-slate-200 bg-white/90 px-8 py-6 text-slate-900 shadow-lg backdrop-blur">
+          <p className="text-base font-semibold tracking-wide">Loading admin panel...</p>
         </div>
       </div>
     );
   }
 
   if (!user) return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-10">
-      <div className="pointer-events-none absolute -left-28 top-8 h-72 w-72 rounded-full bg-cyan-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-amber-500/20 blur-3xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.12),transparent_38%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)] px-4 py-10">
+      <div className="absolute inset-0 -z-10 h-full w-full">
+        <div className="absolute top-0 right-1/4 h-80 w-80 rounded-full bg-blue-100/40 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-indigo-100/30 blur-3xl" />
+      </div>
 
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-white/10 p-8 shadow-2xl backdrop-blur-2xl sm:p-10">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-8 shadow-lg backdrop-blur sm:p-10">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-            <ShieldCheck className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-4xl font-black tracking-tight text-white sm:text-5xl">Admin Access</h2>
-          <p className="mt-2 text-sm text-slate-300">Secure dashboard login for fleet management</p>
+          <h2 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">Admin Access</h2>
+          <p className="mt-2 text-sm text-slate-600">Secure dashboard login for fleet management</p>
         </div>
 
         <form onSubmit={login} className="space-y-4">
@@ -308,7 +424,7 @@ export default function AdminPanel() {
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            className="w-full rounded-2xl border border-white/25 bg-white/15 px-4 py-3.5 text-white placeholder-slate-300 outline-none transition focus:border-cyan-300"
+            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
           />
           <input
             type="password"
@@ -316,11 +432,11 @@ export default function AdminPanel() {
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            className="w-full rounded-2xl border border-white/25 bg-white/15 px-4 py-3.5 text-white placeholder-slate-300 outline-none transition focus:border-cyan-300"
+            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-slate-900 placeholder-slate-400 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
           />
           <button
             type="submit"
-            className="w-full rounded-2xl bg-white py-3.5 text-sm font-bold text-slate-900 transition hover:bg-slate-100"
+            className="w-full rounded-2xl bg-slate-900 py-3.5 text-sm font-bold text-white transition hover:bg-slate-800 shadow-md hover:shadow-lg"
           >
             Login to Dashboard
           </button>
@@ -389,6 +505,16 @@ export default function AdminPanel() {
                 }`}
               >
                 <Calendar className="mb-1 inline h-4 w-4" /> Bookings ({bookings.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-6 py-3 font-semibold transition ${
+                  activeTab === 'settings'
+                    ? 'border-b-2 border-slate-900 text-slate-900'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Lock className="mb-1 inline h-4 w-4" /> Settings
               </button>
             </div>
           </div>
@@ -552,7 +678,7 @@ export default function AdminPanel() {
             {cars.map(car => (
               <div key={car.id} className="group overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="relative">
-                  <img src={car.img} alt={car.name} className="h-52 w-full object-cover" />
+                  <img src={car.img} alt={car.name} className="h-52 w-full object-contain" />
                   <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 backdrop-blur">{car.type}</div>
                 </div>
                 <div className="p-5">
@@ -577,7 +703,8 @@ export default function AdminPanel() {
           </div>
 
           {cars.length === 0 && (
-            <div className="rounded-3xl border border-dashed border-slate-300 bg-white/70 py-16 text-center">
+            <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 py-16 text-center">
+              <Package className="mx-auto mb-4 h-12 w-12 text-slate-300" />
               <p className="text-lg font-semibold text-slate-500">No cars in fleet yet. Add one above.</p>
             </div>
           )}
@@ -709,6 +836,122 @@ export default function AdminPanel() {
               </div>
             )}
           </div>
+          )}
+
+          {activeTab === 'settings' && (
+          <>
+          <div className="mb-10 rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-lg backdrop-blur sm:p-8">
+            <h2 className="mb-6 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">User Management</h2>
+            <div className="mb-8 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+              <p className="mb-4 text-sm font-semibold text-sky-900">Create New Admin User</p>
+              <form onSubmit={makeUserAdmin} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <input
+                  type="email"
+                  placeholder="Admin email"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  required
+                  className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-sky-500"
+                />
+                <input
+                  type="password"
+                  placeholder="Password (min 6 chars)"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  required
+                  className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-sky-500"
+                />
+                <input
+                  type="password"
+                  placeholder="Confirm password"
+                  value={newAdminConfirmPassword}
+                  onChange={(e) => setNewAdminConfirmPassword(e.target.value)}
+                  required
+                  className="rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-sky-500"
+                />
+                <button
+                  type="submit"
+                  disabled={creatingAdmin}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Users className="h-4 w-4" /> {creatingAdmin ? 'Creating...' : 'Create Admin'}
+                </button>
+              </form>
+            </div>
+
+            <div>
+              <h3 className="mb-4 text-lg font-semibold text-slate-900">Current Admins</h3>
+              {users.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 py-8 text-center">
+                  <p className="text-sm text-slate-600">No users found</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {users.filter(u => u.role === 'admin').map(adminUser => (
+                    <div key={adminUser.uid || adminUser.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900">
+                          <ShieldCheck className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{adminUser.email}</p>
+                          <p className="text-xs text-slate-500">Admin {adminUser.createdBy ? `• Created by ${adminUser.createdBy}` : ''}</p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                        <Check className="h-3 w-3" /> Active
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-lg backdrop-blur sm:p-8">
+            <h2 className="mb-6 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Change Password</h2>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 mb-6 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 mt-0.5 text-amber-600 shrink-0" />
+              <p className="text-sm text-amber-900">
+                <strong>Important:</strong> Changing your password will log you out from all sessions for security purposes.
+              </p>
+            </div>
+            <form onSubmit={changePassword} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <input
+                type="password"
+                placeholder="Current Password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+              <input
+                type="password"
+                placeholder="Confirm New Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+              />
+              <div className="sm:col-span-2 lg:col-span-3">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-8 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  <Lock className="h-4 w-4" /> Update Password
+                </button>
+              </div>
+            </form>
+          </div>
+          </>
           )}
         </div>
       </div>

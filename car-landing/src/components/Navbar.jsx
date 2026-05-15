@@ -50,7 +50,7 @@ export default function Navbar() {
       <nav className={`fixed left-0 right-0 z-50 transition-all duration-500 ease-in-out ${scrolled ? 'top-2 md:top-4 px-3 md:px-6' : 'top-4 md:top-6 px-4 md:px-8'}`}>
         <div className={`mx-auto max-w-7xl transition-all duration-500 border rounded-full ${scrolled ? 'bg-white/70 backdrop-blur-xl border-white/60 py-2.5 px-4 md:px-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)]' : 'bg-transparent border-transparent py-2 px-2'}`}>
           <div className="flex items-center justify-between gap-4">
-            <button onClick={() => handleNavClick('Home')} className="text-left group flex-shrink-0">
+            <button onClick={() => handleNavClick('Home')} className="text-left group shrink-0">
               <div className="text-xl md:text-2xl font-black tracking-widest text-gray-900 group-hover:text-blue-700 transition-colors duration-300 uppercase font-display">IMRAN</div>
               <div className="text-[9px] md:text-[10px] uppercase tracking-[0.4em] text-gray-500 font-semibold">Rent a Car</div>
             </button>

@@ -328,7 +328,7 @@ export default function BookingModal({ isOpen, onClose }) {
                         <img 
                           src={car.img} 
                           alt={car.name}
-                          className="w-16 h-12 md:w-20 md:h-14 object-cover rounded-lg"
+                          className="w-16 h-12 md:w-20 md:h-14 object-contain rounded-lg"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-bold text-gray-900 text-sm md:text-base truncate">{car.name}</h4>

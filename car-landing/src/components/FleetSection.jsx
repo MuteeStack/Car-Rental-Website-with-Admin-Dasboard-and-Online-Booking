@@ -88,7 +88,7 @@ function CarCard({ car, index, navigate }) {
         <img
           src={car.img}
           alt={car.name}
-          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+          className="w-full h-full object-contain transition-transform duration-700 ease-out group-hover:scale-110"
         />
         <div className="absolute inset-0 bg-linear-to-t from-gray-900/60 via-transparent to-transparent opacity-80" />
         
