@@ -1,4 +1,4 @@
-# Car Rental Website 🚗
+# Car Rental Website with Admin Pannel and Online Booking
 
 ![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
